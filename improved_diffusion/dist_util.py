@@ -52,15 +52,13 @@ def dev():
 
 def load_state_dict(path, **kwargs):
     """
-    Load a PyTorch file without redundant fetches across MPI ranks.
+    Load a PyTorch file.
+    Each rank loads directly from disk (much faster than MPI broadcast
+    for large checkpoints on a shared filesystem).
     """
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        with bf.BlobFile(path, "rb") as f:
-            data = f.read()
-    else:
-        data = None
-    data = MPI.COMM_WORLD.bcast(data)
-    return th.load(io.BytesIO(data), **kwargs)
+    # Ensure rank 0 has finished writing before others read
+    MPI.COMM_WORLD.Barrier()
+    return th.load(path, **kwargs)
 
 
 def sync_params(params):

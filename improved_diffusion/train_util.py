@@ -138,13 +138,12 @@ class TrainLoop:
 
         if resume_checkpoint:
             self.resume_step = parse_resume_step_from_filename(resume_checkpoint)
-            if dist.get_rank() == 0:
-                logger.log(f"loading model from checkpoint: {resume_checkpoint}...")
-                self.model.load_state_dict(
-                    dist_util.load_state_dict(
-                        resume_checkpoint, map_location=dist_util.dev()
-                    ), strict=load_strict
-                ) # Note: use strict=False means less-strict weight loading
+            logger.log(f"loading model from checkpoint: {resume_checkpoint}...")
+            self.model.load_state_dict(
+                dist_util.load_state_dict(
+                    resume_checkpoint, map_location=dist_util.dev()
+                ), strict=load_strict
+            ) # Note: use strict=False means less-strict weight loading
 
         dist_util.sync_params(self.model.parameters())
 
@@ -154,12 +153,11 @@ class TrainLoop:
         main_checkpoint = find_resume_checkpoint() or self.resume_checkpoint
         ema_checkpoint = find_ema_checkpoint(main_checkpoint, self.resume_step, rate)
         if ema_checkpoint:
-            if dist.get_rank() == 0:
-                logger.log(f"loading EMA from checkpoint: {ema_checkpoint}...")
-                state_dict = dist_util.load_state_dict(
-                    ema_checkpoint, map_location=dist_util.dev()
-                )
-                ema_params = self._state_dict_to_master_params(state_dict)
+            logger.log(f"loading EMA from checkpoint: {ema_checkpoint}...")
+            state_dict = dist_util.load_state_dict(
+                ema_checkpoint, map_location=dist_util.dev()
+            )
+            ema_params = self._state_dict_to_master_params(state_dict)
 
         dist_util.sync_params(ema_params)
         return ema_params
@@ -175,7 +173,7 @@ class TrainLoop:
                 opt_checkpoint, map_location=dist_util.dev()
             )
             if load_strict: # Note: comment if mismatched loading of weights
-                self.opt.load_state_dict(state_dict) 
+                self.opt.load_state_dict(state_dict)
 
     def _setup_fp16(self):
         self.master_params = make_master_params(self.model_params)
@@ -332,14 +330,14 @@ class TrainLoop:
         return state_dict
 
     def _state_dict_to_master_params(self, state_dict):
-        if load_strict: 
+        if load_strict:
             params = [state_dict[name] for name, _ in self.model.named_parameters()]
             if self.use_fp16:
                 return make_master_params(params)
             else:
                 return params
         else:
-            
+
             params = []
             for name, p in self.model.named_parameters():
                 if name in state_dict.keys():
